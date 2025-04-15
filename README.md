@@ -186,8 +186,8 @@ def brute_force(encrypted_data, wordlist):
 
 ## **Appendix A: Installation**  
 ```bash
-git clone https://github.com/clasikpaige/wallet-research-tool
-cd wallet-research-tool
+git clone https://github.com/clasikpaige/Netaker
+cd Netaker
 pip install -r requirements.txt
 ```
 
