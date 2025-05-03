@@ -9,69 +9,54 @@
 ██║ ╚████║███████╗   ██║   ██║  ██║██║  ██╗███████╗██║  ██║
 ╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 """
-
-
-
 ```
-## Technical Documentation: Wallet Exfiltration & Cryptographic Analysis Tool  ```
+
+---
+
+## **README – Red Team Crypto Wallet Exfiltration Framework**
 
 *Author: clasikpaige*  
-*GitHub: github.com/clasikpaige*  
-
-## **Abstract**  
-This paper documents a proof-of-concept tool for analyzing security vulnerabilities in self-custody cryptocurrency wallets. The system demonstrates:  
-1. File exfiltration via malicious PDFs  
-2. Cryptographic analysis of extracted wallet data  
-3. Brute-force attacks on encrypted keys  
-4. Transaction signing risks with compromised keys  
+*Repo: github.com/clasikpaige/netaker*  
+*Modules: `netaker.py`, `decryptor.py`*  
+*Purpose: Full-chain compromise simulation of self-custody wallets across platforms*
 
 ---
 
-## **1. Introduction**  
-Self-custody wallets store encryption keys locally, creating attack surfaces for:  
-- **File system breaches** (via malware/exploits)  
-- **Cryptographic weaknesses** (poor key derivation)  
-- **Transaction integrity risks** (malicious signing)  
+## **1. System Architecture**
 
-This tool simulates real-world attacks for defensive research purposes.
+### **1.1 Component Flow**
 
----
-
-## **2. System Architecture**  
-
-### **2.1 Component Diagram**  
 ```mermaid
 graph TD
-    A[Malicious PDF] -->|JavaScript Payload| B[File Exfiltration]
-    B --> C[C2 Server]
-    C --> D[Brute-Force Module]
-    D --> E[Key Recovery]
-    E --> F[Transaction Signing]
+    A[Malicious Payload (PDF, HTA, Macro, iOS)] -->|Execution| B[File Exfiltration Engine]
+    B --> C[Central Data Folder (/data/exfil)]
+    C --> D[decryptor.py]
+    D --> E[Brute-Force Engine]
+    E --> F[Private Key Recovery]
+    F --> G[Transaction Signing (ECDSA)]
 ```
-
-### **2.2 Workflow Table**  
-
-| Stage | Technique | Target | Outcome |
-|-------|-----------|--------|---------|
-| Delivery | PDF JavaScript | User device | Initial compromise |
-| Exfiltration | HTTP POST | Wallet files | Data collection |
-| Analysis | Pattern matching | JSON/LDB files | Key identification |
-| Decryption | Dictionary attack | Encrypted keys | Plaintext recovery |
-| Exploitation | ECDSA signing | Blockchain | Unauthorized transactions |
 
 ---
 
-## **3. Cryptographic Workflows**  
+## **2. Workflow Overview**
 
-### **3.1 Key Storage Formats**  
-Common wallet encryption schemes:  
+| Phase        | Tool Component       | File Target              | Result                        |
+|--------------|----------------------|---------------------------|-------------------------------|
+| Delivery     | Embedded Payload     | PDF, HTA, Macro, PWSH     | Code Execution                |
+| Exfiltration | `netaker.py` FS Scan | Wallet, keystore, mobile  | File dumped to `/data/`       |
+| Analysis     | Pattern Extractor    | *.json, *.ldb             | Parsed for `crypto` structure |
+| Decryption   | `decryptor.py`       | Encrypted key             | Plaintext key (if cracked)    |
+| Signing      | ECDSA Module         | Transaction payload       | Simulated unauthorized tx     |
 
-```python
-# Typical wallet.json structure
+---
+
+## **3. Wallet Structure**
+
+```json
 {
   "crypto": {
     "cipher": "aes-128-ctr",
-    "ciphertext": "7b227665...",  # Encrypted private key
+    "ciphertext": "7b227665...",
     "kdf": "pbkdf2",
     "salt": "d4e5f6...",
     "iterations": 262144
@@ -79,120 +64,111 @@ Common wallet encryption schemes:
 }
 ```
 
-### **3.2 Brute-Force Mathematics**  
+---
 
-For password `p` attempting to decrypt ciphertext `C`:  
+## **4. Brute-Force Flow (decryptor.py)**
 
-1. **Key Derivation**:  
-   ```
-   key = PBKDF2(p, salt, iterations, dkLen=32)
-   ```
+```python
+def brute_force(encrypted, salt, iterations, wordlist):
+    for pwd in wordlist:
+        key = PBKDF2(pwd, salt, iterations, dkLen=32)
+        try:
+            plain = AES_decrypt(key, encrypted)
+            if valid_key(plain): return plain
+        except: continue
+```
 
-2. **Decryption Attempt**:  
-   ```
-   plaintext = AES-CTR(key, C)
-   ```
+**Mathematical Flow:**
 
-3. **Success Condition**:  
-   ```
-   ∃ p ∈ P : SHA3(plaintext) == known_public_key_hash
-   ```
-
-Where:  
-- `P` = password dictionary  
-- Computational complexity = `|P| × iterations`
+```
+key = PBKDF2(password, salt, iterations)
+plaintext = AES-CTR(key, ciphertext)
+if SHA3(plaintext) == known_pubkey_hash → success
+```
 
 ---
 
-## **4. Local Storage Risks**  
+## **5. Transaction Risk Model**
 
-### **4.1 Attack Vectors**  
-| Risk Factor | Impact | Mitigation |
-|-------------|--------|------------|
-| Clear-text keys | Immediate theft | Hardware encryption |
-| Weak KDF parameters | Faster brute-force | Argon2id, >100k iterations |
-| Predictable passwords | Dictionary attacks | Passphrase policies |
+### **5.1 Signing Sequence**
 
-### **4.2 Data Protection Requirements**  
-1. **Encryption-at-rest** for all wallet files  
-2. **Memory hardening** against cold boot attacks  
-3. **Filesystem permissions** (600 on Unix systems)  
-4. **Secure deletion** of temporary files  
-
----
-
-## **5. Transaction Signing Risks**  
-
-### **5.1 Compromised Key Workflow**  
 ```mermaid
 sequenceDiagram
-    Attacker->>+Wallet: Submit raw transaction
-    Wallet->>+Crypto Engine: Sign with stolen key
-    Crypto Engine-->>-Blockchain: Broadcast signed tx
-```
-
-### **5.2 Technical Constraints**  
-1. Encrypted keys **cannot** directly sign transactions  
-2. Required decryption steps:  
-   ```python
-   def sign_transaction(encrypted_key, password):
-       key = decrypt_key(encrypted_key, password)
-       signature = ecdsa_sign(key, tx_hash)
-       return signature
-   ```
-
----
-
-## **6. Implementation Details**  
-
-### **6.1 Tool Components**  
-
-#### **PDF Generator**  
-- Embeds JavaScript for file system traversal  
-- Targets:  
-  ```javascript
-  const WALLET_PATHS = [
-    "~/Library/Application Support/*/keys.json",
-    "%APPDATA%\\Ethereum\\keystore\\*.json"
-  ]
-  ```
-
-#### **Brute-Force Module**  
-```python
-def brute_force(encrypted_data, wordlist):
-    for password in wordlist:
-        key = PBKDF2(password, salt, iterations)
-        try:
-            return AES_decrypt(key, encrypted_data)
-        except:
-            continue
+    Attacker->>+Wallet: Submit crafted transaction
+    Wallet->>+Crypto Module: Sign with stolen key
+    Crypto Module-->>-Blockchain: Broadcast signed TX
 ```
 
 ---
 
-## **7. Ethical Considerations**  
+## **6. Platform Payloads (Integrated)**
 
-### **7.1 Responsible Disclosure**  
-1. **Never test** on non-consenting systems  
-2. **Report vulnerabilities** to wallet vendors  
-3. **Follow** CVE disclosure guidelines  
+- [x] PDF (JavaScript payload, JS-embedded)
+- [x] HTA (Windows HTA loader)
+- [x] Office Macro (Excel/Word VBA)
+- [x] PowerShell dropper (obfuscated, multi-line)
+- [x] Python (Linux/macOS)
+- [x] iOS (Keychain enumeration and keystore dump)
 
-### **7.2 Defensive Recommendations**  
-- Use hardware wallets for key storage  
-- Implement biometric decryption gates  
-- Monitor for anomalous file access  
+Each one is generated inside `netaker.py` and saved under:
+
+```
+/data/exfil/
+├── ios/
+├── keystores/
+├── logs/
+└── brute_results/
+```
 
 ---
 
-## **Appendix A: Installation**  
+## **7. Ethical Guidelines**
+
+| Principle                 | Rule                                                    |
+|---------------------------|----------------------------------------------------------|
+| Do not attack real wallets | Use only on test wallets and lab environments           |
+| Respect disclosure        | Report real-world flaws through CVE or vendor channels  |
+| Secure log retention      | Encrypt all logs if saving results externally           |
+
+---
+
+## **8. Install & Run**
+
 ```bash
-git clone https://github.com/clasikpaige/Netaker
-cd Netaker
+git clone https://github.com/clasikpaige/netaker
+cd netaker
 pip install -r requirements.txt
+
+# Run interactive CLI
+python3 netaker.py
+
+# Run brute-force recovery
+python3 decryptor.py --input ./data/exfil/keystores/
 ```
 
-## **Appendix B: Testing Workflow**  
-1. Generate test wallet with known password  
-2. Run PDF exfiltration  
-3. Verify brute-force success rate  
-4. Document time-to-compromise metrics
+---
+
+## **9. Test Workflow**
+
+1. Generate test wallet with known password (e.g., Geth/Metamask)
+2. Run `netaker.py`, choose payload
+3. Deliver via PDF/HTA/USB/email
+4. Extract exfil files from `/data/exfil/`
+5. Run `decryptor.py` and attempt recovery
+
+---
+
+## **10. Future Expansion**
+
+- GPU-accelerated brute-force (via Hashcat)
+- Web3.js interface for auto-push TX
+- Lattice-based recovery for weak mnemonic schemes
+- UTXO scanner to flag stolen key use
+
+---
+
+## Credits
+
+**clasikpaige** – Red team tooling and crypto offensive research  
+GitHub: [github.com/clasikpaige](https://github.com/clasikpaige)  
+Docs powered by Mermaid.js, Markdown, and offensive imagination.
