@@ -171,4 +171,3 @@ python3 decryptor.py --input ./data/exfil/keystores/
 
 **clasikpaige** – Red team  and crypto offensive researcher
 GitHub: [github.com/clasikpaige](https://github.com/clasikpaige)  
-Docs powered by Mermaid.js, Markdown, and offensive imagination.
