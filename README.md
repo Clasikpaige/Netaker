@@ -13,7 +13,7 @@
 
 ---
 
-## **README – Red Team Crypto Wallet Exfiltration Framework**
+## **README –  Crypto Wallet Exfiltration Framework**
 
 *Author: clasikpaige*  
 *Repo: github.com/clasikpaige/netaker*  
