@@ -18,7 +18,7 @@
 *Author: clasikpaige*  
 *Repo: github.com/clasikpaige/netaker*  
 *Modules: `netaker.py`, `decryptor.py`*  
-*Purpose: Full-chain compromise simulation of self-custody wallets across platforms*
+*Purpose: Full-chain compromise of self-custody wallets across platforms*
 
 ---
 
